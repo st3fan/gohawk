@@ -30,22 +30,20 @@ func NewAuthorizer(cf CredentialsFunction, replayChecker ReplayChecker) *Authori
 	}
 }
 
-type Credentials struct {
-	KeyIdentifier string
-	Key           []byte
-	Algorithm     string
-	// This is application specific. Can this be done in a nicer way with interfaces?
-	Uid      uint64
-	Username string
+type Key struct {
+	Identifier string
+	Secret     []byte
+	Algorithm  string
 }
 
-type Artifacts struct {
+type Credentials interface {
+	Key() Key
 }
 
 var MalformedParametersErr = errors.New("Malformed Parameters")
 var MalformedCredentialsErr = errors.New("Malformed Credentials")
 
-type CredentialsFunction func(r *http.Request, keyIdentifier string) (*Credentials, error)
+type CredentialsFunction func(r *http.Request, keyIdentifier string) (Credentials, error)
 
 //
 type Parameters struct {
@@ -128,10 +126,10 @@ func validateParameters(parameters Parameters) error {
 }
 
 func validateCredentials(credentials Credentials) error {
-	if credentials.KeyIdentifier == "" || len(credentials.Key) == 0 {
+	if credentials.Key().Identifier == "" || len(credentials.Key().Identifier) == 0 {
 		return MalformedCredentialsErr
 	}
-	if credentials.Algorithm != "sha256" {
+	if credentials.Key().Algorithm != "sha256" {
 		return MalformedCredentialsErr
 	}
 	return nil // TODO: Implement this
@@ -220,7 +218,7 @@ func calculateRequestSignature(r *http.Request, parameters Parameters, credentia
 
 	requestHeader := strings.Join(parts, "\n") + "\n"
 
-	mac := hmac.New(sha256.New, credentials.Key)
+	mac := hmac.New(sha256.New, credentials.Key().Secret)
 	mac.Write([]byte(requestHeader))
 	return mac.Sum(nil), nil
 }
@@ -231,17 +229,17 @@ func (a *Authorizer) Authorize(w http.ResponseWriter, r *http.Request) (Credenti
 	authorization := r.Header.Get("Authorization")
 	if len(authorization) == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	tokens := strings.SplitN(authorization, " ", 2)
 	if len(tokens) != 2 {
 		http.Error(w, "Unsupported authorization method", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 	if tokens[0] != "Hawk" {
 		http.Error(w, "Unsupported authorization method", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	// Parse and validate the Hawk parameters
@@ -249,12 +247,12 @@ func (a *Authorizer) Authorize(w http.ResponseWriter, r *http.Request) (Credenti
 	parameters, err := parseParameters(tokens[1])
 	if err != nil {
 		http.Error(w, "Unable to parse Hawk parameters", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	if err = validateParameters(parameters); err != nil {
 		http.Error(w, "Invalid Hawk parameters: "+err.Error(), http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	// TODO: Check if this request has expired
@@ -267,17 +265,17 @@ func (a *Authorizer) Authorize(w http.ResponseWriter, r *http.Request) (Credenti
 	if err != nil {
 		// TODO: Unable to check means server error. Is there a better strategy?
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	if seenBefore {
 		http.Error(w, "Request has been seen before", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	if err := a.replayChecker.Remember(requestId); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	// Find the user and keys
@@ -285,32 +283,32 @@ func (a *Authorizer) Authorize(w http.ResponseWriter, r *http.Request) (Credenti
 	credentials, err := a.cf(r, parameters.Id)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return Credentials{}, false
+		return nil, false
 	}
 	if credentials == nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
-	if err := validateCredentials(*credentials); err != nil {
+	if err := validateCredentials(credentials); err != nil {
 		http.Error(w, "Invalid credentials: "+err.Error(), http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	// Check the Hawk request signature
 
-	mac, err := calculateRequestSignature(r, parameters, *credentials)
+	mac, err := calculateRequestSignature(r, parameters, credentials)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	if !bytes.Equal(mac, parameters.Mac) {
 		http.Error(w, "Signature Mismatch", http.StatusUnauthorized)
-		return Credentials{}, false
+		return nil, false
 	}
 
 	// Return the credentials and parsed artifacts
 
-	return *credentials, true
+	return credentials, true
 }
