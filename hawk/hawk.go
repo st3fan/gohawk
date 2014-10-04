@@ -18,13 +18,13 @@ import (
 	"text/scanner"
 )
 
-type Authorizer struct {
+type Authenticator struct {
 	cf            CredentialsFunction
 	replayChecker ReplayChecker
 }
 
-func NewAuthorizer(cf CredentialsFunction, replayChecker ReplayChecker) *Authorizer {
-	return &Authorizer{
+func NewAuthenticator(cf CredentialsFunction, replayChecker ReplayChecker) *Authenticator {
+	return &Authenticator{
 		cf:            cf,
 		replayChecker: replayChecker,
 	}
@@ -38,6 +38,24 @@ type Key struct {
 
 type Credentials interface {
 	Key() Key
+}
+
+type BasicCredentials struct {
+	key Key
+}
+
+func NewBasicCredentials(identifier string, secret []byte, algorithm string) *BasicCredentials {
+	return &BasicCredentials{
+		key: Key{
+			Identifier: identifier,
+			Secret:     secret,
+			Algorithm:  algorithm,
+		},
+	}
+}
+
+func (c *BasicCredentials) Key() Key {
+	return c.key
 }
 
 var MalformedParametersErr = errors.New("Malformed Parameters")
@@ -223,7 +241,7 @@ func calculateRequestSignature(r *http.Request, parameters Parameters, credentia
 	return mac.Sum(nil), nil
 }
 
-func (a *Authorizer) Authorize(w http.ResponseWriter, r *http.Request) (Credentials, bool) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (Credentials, bool) {
 	// Grab the Authorization Header
 
 	authorization := r.Header.Get("Authorization")
