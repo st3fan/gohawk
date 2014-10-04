@@ -21,7 +21,7 @@ var hawkAuthenticator = hawk.NewAuthenticator(GetHawkCredentials,
     hawk.NewMemoryBackedReplayChecker())
 ```
 
-Your handlers will look as follows. If you use a web framework that supports middleware then the call to `Authenticate()` should be simple to wrap. Personally I keep things simple and I don't mind the verbosity of a the implementation below:
+Your handlers will look as follows. If you use a web framework that supports middleware then the call to `Authenticate()` should be simple to wrap. Personally I keep things simple with the `net/http` package and I don't mind the verbosity of an explicit check.
 
 ```
 func MyHandler(w http.ResponseWriter, r *http.Request) {
