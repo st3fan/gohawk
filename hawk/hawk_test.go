@@ -118,11 +118,12 @@ func Test_calculateRequestSignatureWithGET(t *testing.T) {
 		// TODO: Rest is not important for this test
 	}
 
-	credentials := Credentials{
-		KeyIdentifier: "dh37fgj492je",
-		Key:           []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"),
-		Algorithm:     "sha256",
-	}
+	credentials := NewBasicCredentials("dh37fgj492je", []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"), "sha256")
+	// credentials := Credentials{
+	// 	KeyIdentifier: "dh37fgj492je",
+	// 	Key:           []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"),
+	// 	Algorithm:     "sha256",
+	// }
 
 	mac, err := calculateRequestSignature(r, parameters, credentials)
 	if err != nil {
@@ -152,11 +153,12 @@ func Test_calculateRequestSignatureWithPOST(t *testing.T) {
 		// TODO: Rest is not important for this test
 	}
 
-	credentials := Credentials{
-		KeyIdentifier: "dh37fgj492je",
-		Key:           []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"),
-		Algorithm:     "sha256",
-	}
+	credentials := NewBasicCredentials("dh37fgj492je", []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"), "sha256")
+	// credentials := Credentials{
+	// 	KeyIdentifier: "dh37fgj492je",
+	// 	Key:           []byte("werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn"),
+	// 	Algorithm:     "sha256",
+	// }
 
 	mac, err := calculateRequestSignature(r, parameters, credentials)
 	if err != nil {
