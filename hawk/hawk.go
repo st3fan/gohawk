@@ -18,6 +18,13 @@ import (
 	"text/scanner"
 )
 
+type Algorithm string
+
+const (
+	SHA256Algorithm  Algorithm = "sha256"
+	DefaultAlgorithm           = SHA256Algorithm
+)
+
 type Authenticator struct {
 	cf            CredentialsFunction
 	replayChecker ReplayChecker
@@ -33,7 +40,7 @@ func NewAuthenticator(cf CredentialsFunction, replayChecker ReplayChecker) *Auth
 type Key struct {
 	Identifier string
 	Secret     []byte
-	Algorithm  string
+	Algorithm  Algorithm
 }
 
 type Credentials interface {
@@ -44,7 +51,7 @@ type BasicCredentials struct {
 	key Key
 }
 
-func NewBasicCredentials(identifier string, secret []byte, algorithm string) *BasicCredentials {
+func NewBasicCredentials(identifier string, secret []byte, algorithm Algorithm) *BasicCredentials {
 	return &BasicCredentials{
 		key: Key{
 			Identifier: identifier,
@@ -143,11 +150,12 @@ func validateParameters(parameters Parameters) error {
 	return nil // TODO: Implement this
 }
 
+// Make sure the Credentials return a valid key
 func validateCredentials(credentials Credentials) error {
 	if credentials.Key().Identifier == "" || len(credentials.Key().Identifier) == 0 {
 		return MalformedCredentialsErr
 	}
-	if credentials.Key().Algorithm != "sha256" {
+	if credentials.Key().Algorithm != DefaultAlgorithm {
 		return MalformedCredentialsErr
 	}
 	return nil // TODO: Implement this
