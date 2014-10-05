@@ -8,17 +8,19 @@ In the most simple case you create a `hawk.Authenticator` instance globally or i
 
 The `hawk.Authenticator` takes two values with it's `hawk.NewAuthenticator()` constructor:
 
-* First is a callback function that is called to retrieve the Hawk key specification for a specific key id, containing the algorithm and the secret part of the key.
+* First is a `hawk.CredentialsStore` that is used to retrieve the Hawk key specification for a specific key id, containing the algorithm and the secret part of the key.
 * The second is an optional `hawk.ReplayChecker` implementation that lets you prevent replay attacks. The included `MemoryBackedReplayChecker` simply keeps a list of previous Hawk requests in memory. It is trivial to provide an implementation on for example Redis or some shared cache.
 
 ```
-// A basic key retrieval function that returns a static key
-func GetHawkCredentials(r *http.Request, keyId string) (hawk.Credentials, error) {
-  return hawk.NewBasicCredentials(keyId, "sha256", "secretkeylalala"), nil
+type CredentialsStore struct {
+  sharedSecret string
 }
 
-var hawkAuthenticator = hawk.NewAuthenticator(GetHawkCredentials,
-    hawk.NewMemoryBackedReplayChecker())
+func (cs *CredentialsStore) CredentialsForKeyIdentifier(keyIdentifier string) (hawk.Credentials, error) {
+  ... lookup and return Credentials ...
+}
+
+var hawkAuthenticator = hawk.NewAuthenticator(credentialsStore, hawk.NewMemoryBackedReplayChecker())
 ```
 
 Your handlers will look as follows. If you use a web framework that supports middleware then the call to `Authenticate()` should be simple to wrap. Personally I keep things simple with the `net/http` package and I don't mind the verbosity of an explicit check.
