@@ -20,20 +20,25 @@ import (
 
 type Algorithm string
 
+func (a *Algorithm) Scan(src interface{}) error {
+	*a = "sha256"
+	return nil
+}
+
 const (
 	SHA256Algorithm  Algorithm = "sha256"
 	DefaultAlgorithm           = SHA256Algorithm
 )
 
 type Authenticator struct {
-	cf            CredentialsFunction
-	replayChecker ReplayChecker
+	credentialsStore CredentialsStore
+	replayChecker    ReplayChecker
 }
 
-func NewAuthenticator(cf CredentialsFunction, replayChecker ReplayChecker) *Authenticator {
+func NewAuthenticator(credentialsStore CredentialsStore, replayChecker ReplayChecker) *Authenticator {
 	return &Authenticator{
-		cf:            cf,
-		replayChecker: replayChecker,
+		credentialsStore: credentialsStore,
+		replayChecker:    replayChecker,
 	}
 }
 
@@ -43,32 +48,8 @@ type Key struct {
 	Algorithm  Algorithm
 }
 
-type Credentials interface {
-	Key() Key
-}
-
-type BasicCredentials struct {
-	key Key
-}
-
-func NewBasicCredentials(identifier string, secret []byte, algorithm Algorithm) *BasicCredentials {
-	return &BasicCredentials{
-		key: Key{
-			Identifier: identifier,
-			Secret:     secret,
-			Algorithm:  algorithm,
-		},
-	}
-}
-
-func (c *BasicCredentials) Key() Key {
-	return c.key
-}
-
 var MalformedParametersErr = errors.New("Malformed Parameters")
 var MalformedCredentialsErr = errors.New("Malformed Credentials")
-
-type CredentialsFunction func(r *http.Request, keyIdentifier string) (Credentials, error)
 
 //
 type Parameters struct {
@@ -306,9 +287,9 @@ func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (Cr
 
 	// Find the user and keys
 
-	credentials, err := a.cf(r, parameters.Id)
+	credentials, err := a.credentialsStore.CredentialsForKeyIdentifier(parameters.Id)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, "Internal server error:"+err.Error(), http.StatusInternalServerError)
 		return nil, false
 	}
 	if credentials == nil {
