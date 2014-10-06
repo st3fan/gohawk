@@ -5,6 +5,7 @@
 package hawk
 
 import (
+	"sync"
 	"time"
 )
 
@@ -13,22 +14,53 @@ type ReplayChecker interface {
 	Check(id string) (bool, error)
 }
 
+// MemoryBackedReplayChecker
+
+type replayCacheItem struct {
+	expires time.Time
+}
+
+func (i *replayCacheItem) expired() bool {
+	return time.Now().After(i.expires)
+}
+
 type MemoryBackedReplayChecker struct {
-	ids map[string]time.Time
+	lock  sync.RWMutex
+	ttl   time.Duration
+	items map[string]*replayCacheItem
 }
 
 func NewMemoryBackedReplayChecker() *MemoryBackedReplayChecker {
 	return &MemoryBackedReplayChecker{
-		ids: map[string]time.Time{},
+		ttl:   10 * time.Second,
+		items: map[string]*replayCacheItem{},
 	}
 }
 
 func (rc *MemoryBackedReplayChecker) Remember(id string) error {
-	rc.ids[id] = time.Now()
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+	rc.items[id] = &replayCacheItem{expires: time.Now().Add(rc.ttl)}
 	return nil
 }
 
 func (rc *MemoryBackedReplayChecker) Check(id string) (bool, error) {
-	_, ok := rc.ids[id]
-	return ok, nil
+	rc.lock.RLock()
+	defer rc.lock.RUnlock()
+	item, found := rc.items[id]
+	if !found {
+		return false, nil
+	} else {
+		return !item.expired(), nil
+	}
+}
+
+func (rc *MemoryBackedReplayChecker) expire() {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+	for key, item := range rc.items {
+		if item.expired() {
+			delete(rc.items, key)
+		}
+	}
 }
