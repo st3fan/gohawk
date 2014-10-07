@@ -1,4 +1,4 @@
-# Hawk Implementation for Go Servers
+# Hawk Implementation for Go Services
 
 *Stefan Arentz, October 2014*
 
