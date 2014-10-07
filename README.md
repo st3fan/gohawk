@@ -28,15 +28,14 @@ type CredentialsStore struct {
 
 func (cs *CredentialsStore) CredentialsForKeyIdentifier(keyIdentifier string) (hawk.Credentials, error) {
   var secret string
-  err := cs.db.QueryRow("select secret from api_keys where key_id = $1", keyIdentifier).
-      Scan(&secret, &algorithm)
+  err := cs.db.QueryRow("select secret from api_keys where key_id = $1", keyIdentifier).Scan(&secret)
   switch {
     case err == sql.ErrNoRows:
       return nil, nil
     case err != nil:
       return nil, err
     default:
-      return hawk.NewBasicCredentials(keyIdentifier, hawk.DefaultAlgorithm, algorithm), nil
+      return hawk.NewBasicCredentials(keyIdentifier, hawk.DefaultAlgorithm, secret), nil
   }
 }
 
