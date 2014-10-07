@@ -1,4 +1,4 @@
-# Hawk Implementation for Go Services
+# Hawk Authentication for Go Services
 
 *Stefan Arentz, October 2014*
 
