@@ -128,7 +128,19 @@ func parseParameters(src string) (Parameters, error) {
 }
 
 func validateParameters(parameters Parameters) error {
-	return nil // TODO: Implement this
+	if parameters.Id == "" {
+		return MalformedParametersErr
+	}
+	if parameters.Timestamp == 0 {
+		return MalformedParametersErr
+	}
+	if parameters.Nonce == "" {
+		return MalformedParametersErr
+	}
+	if len(parameters.Mac) == 0 {
+		return MalformedParametersErr
+	}
+	return nil
 }
 
 // Make sure the Credentials return a valid key
@@ -139,7 +151,7 @@ func validateCredentials(credentials Credentials) error {
 	if credentials.Key().Algorithm != DefaultAlgorithm {
 		return MalformedCredentialsErr
 	}
-	return nil // TODO: Implement this
+	return nil
 }
 
 func getRequestPath(r *http.Request) string {
