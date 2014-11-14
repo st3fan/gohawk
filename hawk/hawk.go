@@ -182,7 +182,11 @@ func getRequestPort(r *http.Request) int {
 		port, _ := strconv.Atoi(hostPort[1])
 		return port
 	} else {
-		switch r.URL.Scheme {
+		scheme := r.Header.Get("X-Forwarded-Proto")
+		if scheme == "" {
+			scheme = r.URL.Scheme
+		}
+		switch scheme {
 		case "http":
 			return 80
 		case "https":
